@@ -87,41 +87,47 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 
 		if (matcher.match("/*", requestPath)) {
 			// 创建
-			Set<String> affectedFields = FileterNullAndTransient(split[1], requestBody);
+			HashMap<String,Object> affectedFields = FileterNullAndTransient(split[1], requestBody);
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setLinkType(LinkType.DIRECT);
-			auditLog.setOperate(Operate.CREATE);
+			auditLog.setOperate(Operate.CREATE.toString());
 			HashMap<String, Object> oldMap = new HashMap<String, Object>();
-			for (String key : affectedFields) {
+			for (String key : affectedFields.keySet()) {
 				oldMap.put(key, null);
 			}
-			context.put("affectedFields", affectedFields);
+			context.put("affectedFields", affectedFields.keySet());
 			context.put("oldMap", oldMap);
 
 		} else if (matcher.match("/*/*", requestPath)) {
 			// 更新
-			Set<String> affectedFields = FileterNullAndTransient(split[1], requestBody);
+			HashMap<String,Object> affectedFields = FileterNullAndTransient(split[1], requestBody);
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setOwnerUuid(split[2]);
 			auditLog.setLinkType(LinkType.DIRECT);
-			auditLog.setOperate(Operate.UPDATE);
+			
+			if(getOperate(requestBody)!=null) {
+				auditLog.setOperate(getOperate(requestBody));
+			}else {
+				auditLog.setOperate(Operate.UPDATE.toString());
+			}
 			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
-					"uuid=" + auditLog.getOwnerUuid() + "&fields=" + String.join(",", affectedFields));
-			context.put("affectedFields", affectedFields);
+					"uuid=" + auditLog.getOwnerUuid() + "&fields=" + String.join(",", affectedFields.keySet()));
+			context.put("affectedFields", affectedFields.keySet());
 			context.put("oldMap", fetchOne);
 
 		} else if (matcher.match("/*/*/*", requestPath)) {
 			// 桥接创建
 			auditLog.setLinkType(LinkType.BRIDGE);
-			auditLog.setOperate(Operate.LINK_CREATE);
 			String subResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(split[1], split[3]);
-
-			Set<String> fields = FileterNullAndTransient(subResourceName, requestBody);
+			HashMap<String,Object> fields = FileterNullAndTransient(subResourceName, requestBody);
+		
+			auditLog.setOperate(Operate.LINK_CREATE.toString());
+			
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setOwnerUuid(split[2]);
 
 			HashSet<String> affectedFields = new HashSet<String>();
-			for (String str : fields) {
+			for (String str : fields.keySet()) {
 				affectedFields.add(split[3] + "." + str);
 			}
 			String bodyUuid = getUuid(requestBody);
@@ -144,33 +150,38 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		} else if (matcher.match("/*/*/*/*", requestPath)) {
 			// 桥接更新
 			auditLog.setLinkType(LinkType.BRIDGE);
-			auditLog.setOperate(Operate.LINK_UPDATE);
 			String subResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(split[1], split[3]);
-			Set<String> affectedFields = FileterNullAndTransient(subResourceName, requestBody);
+			HashMap<String,Object> affectedFields = FileterNullAndTransient(subResourceName, requestBody);
+			if(getOperate(requestBody)!=null) {
+				auditLog.setOperate(getOperate(requestBody));
+			}else {
+				auditLog.setOperate(Operate.LINK_UPDATE.toString());
+			}
+			
 			auditLog.setOwnerResource(subResourceName);
 			auditLog.setOwnerUuid(split[4]);
 			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
-					"uuid=" + auditLog.getOwnerUuid() + "&fields=" + String.join(",", affectedFields));
+					"uuid=" + auditLog.getOwnerUuid() + "&fields=" + String.join(",", affectedFields.keySet()));
 
-			context.put("affectedFields", affectedFields);
+			context.put("affectedFields", affectedFields.keySet());
 			context.put("oldMap", fetchOne);
 
 		} else if (matcher.match("/*/*/*/*/*", requestPath)) {
 			// 桥接桥接创建
 			auditLog.setLinkType(LinkType.BRIDGE);
-			auditLog.setOperate(Operate.LINK_CREATE);
-
 			String subResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(split[1], split[3]);
-
 			String subsubResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(subResourceName,
 					split[5]);
 
-			Set<String> fields = FileterNullAndTransient(subsubResourceName, requestBody);
+			HashMap<String,Object> fields = FileterNullAndTransient(subsubResourceName, requestBody);
+			
+			auditLog.setOperate(Operate.LINK_CREATE.toString());
+			
 			auditLog.setOwnerResource(subResourceName);
 			auditLog.setOwnerUuid(split[4]);
 
 			HashSet<String> affectedFields = new HashSet<String>();
-			for (String str : fields) {
+			for (String str : fields.keySet()) {
 				affectedFields.add(split[5] + "." + str);
 			}
 
@@ -205,13 +216,13 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 
 		AuditLog auditLog = (AuditLog) context.get("auditLog");
 		auditLog.setUuid(httpPostOkResponse.getUuid());
-		Operate operate = auditLog.getOperate();
-		if (operate.equals(Operate.CREATE)) {
+		String operate = auditLog.getOperate();
+		if (operate.equals(Operate.CREATE.toString())) {
 			auditLog.setOwnerUuid(httpPostOkResponse.getUuid());
 		}
 
 		Map fetchOne;
-		if (operate.equals(Operate.LINK_CREATE)) {
+		if (operate.equals(Operate.LINK_CREATE.toString())) {
 			PathMatcher matcher = new AntPathMatcher();
 			String prefix = "";
 			String[] split = requestPath.split("/");
@@ -327,7 +338,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		return ret;
 	}
 
-	private Set<String> FileterNullAndTransient(String resource, String requestBody) {
+	private HashMap<String, Object> FileterNullAndTransient(String resource, String requestBody) {
 		EntityStructure structure = JpaSmartQuerySupport.getStructure(resource);
 		Map<String, Object> objectMap = com.liyang.jpa.restful.core.utils.CommonUtils.stringToMap(requestBody);
 		HashMap<String, Object> ret = new HashMap<String, Object>();
@@ -340,13 +351,22 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 				}
 			}
 		}
-		return ret.keySet();
+		return ret;
 	}
 
 	private String getUuid(String requestBody) {
 		Map<String, Object> objectMap = com.liyang.jpa.restful.core.utils.CommonUtils.stringToMap(requestBody);
 		if (objectMap.containsKey("uuid")) {
 			return objectMap.get("uuid").toString();
+		} else {
+			return null;
+		}
+	}
+
+	private String getOperate(String requestBody) {
+		Map<String, Object> objectMap = com.liyang.jpa.restful.core.utils.CommonUtils.stringToMap(requestBody);
+		if (objectMap.containsKey("operate")) {
+			return objectMap.get("operate").toString();
 		} else {
 			return null;
 		}

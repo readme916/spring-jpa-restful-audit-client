@@ -10,6 +10,6 @@ import com.liyang.jpa.audit.server.domain.AuditLog;
 @FeignClient("${spring.jpa.restful.audit.server-name}")
 public interface  AuditService {
 
-	@RequestMapping(path="/log",method=RequestMethod.POST)
+	@RequestMapping(path="/api",method=RequestMethod.POST)
 	public String add(@RequestBody AuditLog log);
 }

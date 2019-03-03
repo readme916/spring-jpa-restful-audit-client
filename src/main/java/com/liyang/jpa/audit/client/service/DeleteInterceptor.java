@@ -75,7 +75,7 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setOwnerUuid(split[2]);
 			auditLog.setLinkType(LinkType.DIRECT);
-			auditLog.setOperate(Operate.DELETE);
+			auditLog.setOperate(Operate.DELETE.toString());
 
 			Set<String> keySet = JpaSmartQuerySupport.getStructure(split[1]).getObjectFields().keySet();
 			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
@@ -91,7 +91,7 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 		} else if (matcher.match("/*/*/*/*", requestPath)) {
 			// 桥接删除
 			auditLog.setLinkType(LinkType.BRIDGE);
-			auditLog.setOperate(Operate.LINK_DELETE);
+			auditLog.setOperate(Operate.LINK_DELETE.toString());
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setOwnerUuid(split[2]);
 
