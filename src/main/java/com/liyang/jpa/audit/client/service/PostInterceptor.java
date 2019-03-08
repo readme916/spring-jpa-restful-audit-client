@@ -72,7 +72,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 
 	@Override
 
-	public boolean preHandle(String requestPath, String requestBody, Object oldInstance, Map<Object, Object> context) {
+	public boolean preHandle(String requestPath, Map<String,Object> requestBody, Object oldInstance, Map<Object, Object> context) {
 		AuditLog auditLog = new AuditLog();
 		context.put("auditLog", auditLog);
 		PathMatcher matcher = new AntPathMatcher();
@@ -80,7 +80,6 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		auditLog.setApplication(application);
 		auditLog.setPostBody(requestBody);
 		auditLog.setRequestPath(requestPath);
-		auditLog.setTerminal(CommonUtils.getTerminal());
 		auditLog.setIp(CommonUtils.getIP());
 		auditLog.setCreateAt(new Date());
 		String[] split = requestPath.split("/");
@@ -338,11 +337,10 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		return ret;
 	}
 
-	private HashMap<String, Object> FileterNullAndTransient(String resource, String requestBody) {
+	private HashMap<String, Object> FileterNullAndTransient(String resource, Map<String,Object> requestBody) {
 		EntityStructure structure = JpaSmartQuerySupport.getStructure(resource);
-		Map<String, Object> objectMap = com.liyang.jpa.restful.core.utils.CommonUtils.stringToMap(requestBody);
 		HashMap<String, Object> ret = new HashMap<String, Object>();
-		Set<Entry<String, Object>> entrySet = objectMap.entrySet();
+		Set<Entry<String, Object>> entrySet = requestBody.entrySet();
 		for (Entry<String, Object> entry : entrySet) {
 			if (entry.getValue() != null) {
 				if (structure.getObjectFields().containsKey(entry.getKey())
@@ -354,19 +352,18 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		return ret;
 	}
 
-	private String getUuid(String requestBody) {
-		Map<String, Object> objectMap = com.liyang.jpa.restful.core.utils.CommonUtils.stringToMap(requestBody);
-		if (objectMap.containsKey("uuid")) {
-			return objectMap.get("uuid").toString();
+	private String getUuid(Map<String,Object> requestBody) {
+		if (requestBody.containsKey("uuid")) {
+			return requestBody.get("uuid").toString();
 		} else {
 			return null;
 		}
 	}
 
-	private String getOperate(String requestBody) {
-		Map<String, Object> objectMap = com.liyang.jpa.restful.core.utils.CommonUtils.stringToMap(requestBody);
-		if (objectMap.containsKey("operate")) {
-			return objectMap.get("operate").toString();
+	private String getOperate( Map<String,Object> requestBody) {
+		
+		if (requestBody.containsKey("operate")) {
+			return requestBody.get("operate").toString();
 		} else {
 			return null;
 		}
