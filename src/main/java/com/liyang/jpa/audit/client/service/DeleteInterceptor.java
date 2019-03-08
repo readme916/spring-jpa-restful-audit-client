@@ -49,8 +49,8 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 	}
 
 	@Override
-	public String path() {
-		return "/**";
+	public String[] path() {
+		return new String[] {"/**"};
 	}
 
 	@Override

@@ -65,9 +65,9 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 	}
 
 	@Override
-	public String path() {
+	public String[] path() {
 		// TODO Auto-generated method stub
-		return "/**";
+		return new String[] {"/**"};
 	}
 
 	@Override
