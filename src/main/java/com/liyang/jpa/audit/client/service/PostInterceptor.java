@@ -13,8 +13,13 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.PathMatcher;
@@ -82,8 +87,23 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		auditLog.setRequestPath(requestPath);
 		auditLog.setIp(CommonUtils.getIP());
 		auditLog.setCreateAt(new Date());
+		
+		SecurityContext securityContext = SecurityContextHolder.getContext();
+		if (securityContext != null) {
+			Authentication authentication = securityContext.getAuthentication();
+			if (authentication instanceof AnonymousAuthenticationToken) {
+				auditLog.setCreateBy("guest");
+			}else {
+				BeanWrapperImpl beanWrapperImpl = new BeanWrapperImpl(authentication);
+				Map<String, Object> objectToMap = com.liyang.jpa.restful.core.utils.CommonUtils.objectToMap(authentication);
+				Map oauth2Request = (Map)objectToMap.get("oauth2Request");
+				Object clientId = oauth2Request.get("clientId");
+				auditLog.setCreateBy(authentication.getName());
+				auditLog.setClient(clientId.toString());
+			}
+		}
+		
 		String[] split = requestPath.split("/");
-
 		if (matcher.match("/*", requestPath)) {
 			// 创建
 			HashMap<String,Object> affectedFields = FileterNullAndTransient(split[1], requestBody);

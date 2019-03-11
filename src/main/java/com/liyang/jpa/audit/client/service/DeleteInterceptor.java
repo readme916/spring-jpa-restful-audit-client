@@ -8,8 +8,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
+import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.PathMatcher;
@@ -50,7 +55,7 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 
 	@Override
 	public String[] path() {
-		return new String[] {"/**"};
+		return new String[] { "/**" };
 	}
 
 	@Override
@@ -64,6 +69,20 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 		context.put("auditLog", auditLog);
 		PathMatcher matcher = new AntPathMatcher();
 
+		SecurityContext securityContext = SecurityContextHolder.getContext();
+		if (securityContext != null) {
+			Authentication authentication = securityContext.getAuthentication();
+			if (authentication instanceof AnonymousAuthenticationToken) {
+				auditLog.setCreateBy("guest");
+			}else {
+				BeanWrapperImpl beanWrapperImpl = new BeanWrapperImpl(authentication);
+				Map<String, Object> objectToMap = com.liyang.jpa.restful.core.utils.CommonUtils.objectToMap(authentication);
+				Map oauth2Request = (Map)objectToMap.get("oauth2Request");
+				Object clientId = oauth2Request.get("clientId");
+				auditLog.setCreateBy(authentication.getName());
+				auditLog.setClient(clientId.toString());
+			}
+		}
 		auditLog.setApplication(application);
 		auditLog.setRequestPath(requestPath);
 		auditLog.setIp(CommonUtils.getIP());
@@ -95,7 +114,7 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 			auditLog.setOwnerUuid(split[2]);
 
 			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
-					"uuid=" + auditLog.getOwnerUuid()+"&"+split[3]+".uuid="+split[4] + "&fields="+split[3]);
+					"uuid=" + auditLog.getOwnerUuid() + "&" + split[3] + ".uuid=" + split[4] + "&fields=" + split[3]);
 			HashSet<String> hashSet = new HashSet<String>();
 			hashSet.add(split[3]);
 			context.put("affectedFields", hashSet);
