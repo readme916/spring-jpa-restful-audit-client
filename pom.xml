@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.liyang.jpa.restful</groupId>
-	<artifactId>audit-client</artifactId>
+	<artifactId>restful-audit-client</artifactId>
 	<version>1.0.1</version>
 	<packaging>jar</packaging>
 	<properties>
@@ -40,12 +40,12 @@
 
 		<dependency>
 			<groupId>com.liyang.jpa.restful</groupId>
-			<artifactId>core</artifactId>
+			<artifactId>restful-core-starter</artifactId>
 			<version>1.0.1</version>
 		</dependency>
 		<dependency>
 			<groupId>com.liyang.jpa.restful</groupId>
-			<artifactId>audit-server</artifactId>
+			<artifactId>restful-audit-server</artifactId>
 			<version>1.0.1</version>
 		</dependency>
 		<dependency>

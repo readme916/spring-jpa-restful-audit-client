@@ -1,5 +1,6 @@
 package com.liyang.jpa.audit.client.service;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -11,18 +12,17 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import javax.servlet.http.HttpServletRequest;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.PathMatcher;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,16 +35,15 @@ import com.liyang.jpa.audit.server.common.Operate;
 import com.liyang.jpa.audit.server.domain.AuditLog;
 import com.liyang.jpa.audit.server.domain.DiffItem;
 import com.liyang.jpa.audit.server.domain.DiffItem.Type;
-import com.liyang.jpa.mysql.config.JpaSmartQuerySupport;
-import com.liyang.jpa.mysql.db.SmartQuery;
-import com.liyang.jpa.mysql.db.structure.EntityStructure;
 import com.liyang.jpa.restful.core.interceptor.JpaRestfulPostInterceptor;
 import com.liyang.jpa.restful.core.response.HTTPPostOkResponse;
+import com.liyang.jpa.smart.query.db.SmartQuery;
+import com.liyang.jpa.smart.query.db.structure.EntityStructure;
 
 @Service
 public class PostInterceptor implements JpaRestfulPostInterceptor {
 	protected final static Logger logger = LoggerFactory.getLogger(PostInterceptor.class);
-
+	
 	@Value(value = "${spring.application.name}")
 	private String application;
 
@@ -88,19 +87,17 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		auditLog.setIp(CommonUtils.getIP());
 		auditLog.setCreateAt(new Date());
 		
-		SecurityContext securityContext = SecurityContextHolder.getContext();
-		if (securityContext != null) {
-			Authentication authentication = securityContext.getAuthentication();
-			if (authentication instanceof AnonymousAuthenticationToken) {
-				auditLog.setCreateBy("guest");
-			}else {
-				BeanWrapperImpl beanWrapperImpl = new BeanWrapperImpl(authentication);
-				Map<String, Object> objectToMap = com.liyang.jpa.restful.core.utils.CommonUtils.objectToMap(authentication);
-				Map oauth2Request = (Map)objectToMap.get("oauth2Request");
+		Principal principal = getPrincipal();
+		if (principal == null) {
+			auditLog.setCreateBy("guest");
+		} else {
+			Map<String, Object> objectToMap = com.liyang.jpa.restful.core.utils.CommonUtils.objectToMap(principal);
+			Map oauth2Request = (Map) objectToMap.get("oauth2Request");
+			if (oauth2Request != null) {
 				Object clientId = oauth2Request.get("clientId");
-				auditLog.setCreateBy(authentication.getName());
 				auditLog.setClient(clientId.toString());
 			}
+			auditLog.setCreateBy(principal.getName());
 		}
 		
 		String[] split = requestPath.split("/");
@@ -358,7 +355,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 	}
 
 	private HashMap<String, Object> FileterNullAndTransient(String resource, Map<String,Object> requestBody) {
-		EntityStructure structure = JpaSmartQuerySupport.getStructure(resource);
+		EntityStructure structure = SmartQuery.getStructure(resource);
 		HashMap<String, Object> ret = new HashMap<String, Object>();
 		Set<Entry<String, Object>> entrySet = requestBody.entrySet();
 		for (Entry<String, Object> entry : entrySet) {
@@ -388,5 +385,9 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			return null;
 		}
 	}
-
+	private Principal getPrincipal() {
+		HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
+				.getRequest();
+		return request.getUserPrincipal();
+	}
 }

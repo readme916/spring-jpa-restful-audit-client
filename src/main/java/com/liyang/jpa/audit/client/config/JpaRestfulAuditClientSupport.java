@@ -1,13 +1,16 @@
 package com.liyang.jpa.audit.client.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
 
 
 @ComponentScan("com.liyang.jpa.audit.client.service")
 @EnableFeignClients(basePackages="com.liyang.jpa.audit.client.service")
-@ConditionalOnProperty("spring.jpa.restful.audit.server-name")
+@Configuration
 public class JpaRestfulAuditClientSupport {
-
+	@Value(value = "${spring.jpa.restful.audit.server-name}")
+	private String server;
 }

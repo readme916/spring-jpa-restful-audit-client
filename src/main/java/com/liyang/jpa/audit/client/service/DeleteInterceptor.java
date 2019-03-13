@@ -1,42 +1,42 @@
 package com.liyang.jpa.audit.client.service;
 
+import java.security.Principal;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 
-import org.springframework.beans.BeanWrapperImpl;
+import javax.servlet.http.HttpServletRequest;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.PathMatcher;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.MapDifference;
-import com.google.common.collect.Maps;
 import com.google.common.collect.MapDifference.ValueDifference;
+import com.google.common.collect.Maps;
 import com.liyang.jpa.audit.client.common.CommonUtils;
 import com.liyang.jpa.audit.server.common.LinkType;
 import com.liyang.jpa.audit.server.common.Operate;
 import com.liyang.jpa.audit.server.domain.AuditLog;
 import com.liyang.jpa.audit.server.domain.DiffItem;
 import com.liyang.jpa.audit.server.domain.DiffItem.Type;
-import com.liyang.jpa.mysql.config.JpaSmartQuerySupport;
-import com.liyang.jpa.mysql.db.SmartQuery;
 import com.liyang.jpa.restful.core.interceptor.JpaRestfulDeleteInterceptor;
 import com.liyang.jpa.restful.core.response.HTTPPostOkResponse;
+import com.liyang.jpa.smart.query.db.SmartQuery;
 
 @Service
 public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
+	
 	@Value(value = "${spring.application.name}")
 	private String application;
 
@@ -69,20 +69,19 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 		context.put("auditLog", auditLog);
 		PathMatcher matcher = new AntPathMatcher();
 
-		SecurityContext securityContext = SecurityContextHolder.getContext();
-		if (securityContext != null) {
-			Authentication authentication = securityContext.getAuthentication();
-			if (authentication instanceof AnonymousAuthenticationToken) {
-				auditLog.setCreateBy("guest");
-			}else {
-				BeanWrapperImpl beanWrapperImpl = new BeanWrapperImpl(authentication);
-				Map<String, Object> objectToMap = com.liyang.jpa.restful.core.utils.CommonUtils.objectToMap(authentication);
-				Map oauth2Request = (Map)objectToMap.get("oauth2Request");
+		Principal principal = getPrincipal();
+		if (principal == null) {
+			auditLog.setCreateBy("guest");
+		} else {
+			Map<String, Object> objectToMap = com.liyang.jpa.restful.core.utils.CommonUtils.objectToMap(principal);
+			Map oauth2Request = (Map) objectToMap.get("oauth2Request");
+			if (oauth2Request != null) {
 				Object clientId = oauth2Request.get("clientId");
-				auditLog.setCreateBy(authentication.getName());
 				auditLog.setClient(clientId.toString());
 			}
+			auditLog.setCreateBy(principal.getName());
 		}
+
 		auditLog.setApplication(application);
 		auditLog.setRequestPath(requestPath);
 		auditLog.setIp(CommonUtils.getIP());
@@ -95,11 +94,11 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 			auditLog.setLinkType(LinkType.DIRECT);
 			auditLog.setOperate(Operate.DELETE.toString());
 
-			Set<String> keySet = JpaSmartQuerySupport.getStructure(split[1]).getObjectFields().keySet();
+			Set<String> keySet = SmartQuery.getStructure(split[1]).getObjectFields().keySet();
 			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
 					"uuid=" + auditLog.getOwnerUuid() + "&fields=*," + String.join(",", keySet));
 
-			Set<String> keySet2 = JpaSmartQuerySupport.getStructure(split[1]).getSimpleFields().keySet();
+			Set<String> keySet2 = SmartQuery.getStructure(split[1]).getSimpleFields().keySet();
 			HashSet<String> hashSet = new HashSet<String>();
 			hashSet.addAll(keySet);
 			hashSet.addAll(keySet2);
@@ -168,4 +167,9 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 		return httpPostOkResponse;
 	}
 
+	private Principal getPrincipal() {
+		HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
+				.getRequest();
+		return request.getUserPrincipal();
+	}
 }
