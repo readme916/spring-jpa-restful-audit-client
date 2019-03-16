@@ -31,7 +31,6 @@ import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
 import com.liyang.jpa.audit.client.common.CommonUtils;
 import com.liyang.jpa.audit.server.common.LinkType;
-import com.liyang.jpa.audit.server.common.Operate;
 import com.liyang.jpa.audit.server.domain.AuditLog;
 import com.liyang.jpa.audit.server.domain.DiffItem;
 import com.liyang.jpa.audit.server.domain.DiffItem.Type;
@@ -106,7 +105,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			HashMap<String,Object> affectedFields = FileterNullAndTransient(split[1], requestBody);
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setLinkType(LinkType.DIRECT);
-			auditLog.setOperate(Operate.CREATE.toString());
+			auditLog.setEvent("create");
 			HashMap<String, Object> oldMap = new HashMap<String, Object>();
 			for (String key : affectedFields.keySet()) {
 				oldMap.put(key, null);
@@ -121,10 +120,10 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			auditLog.setOwnerUuid(split[2]);
 			auditLog.setLinkType(LinkType.DIRECT);
 			
-			if(getOperate(requestBody)!=null) {
-				auditLog.setOperate(getOperate(requestBody));
+			if(getEvent(requestBody)!=null) {
+				auditLog.setEvent(getEvent(requestBody));
 			}else {
-				auditLog.setOperate(Operate.UPDATE.toString());
+				auditLog.setEvent("update");
 			}
 			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
 					"uuid=" + auditLog.getOwnerUuid() + "&fields=" + String.join(",", affectedFields.keySet()));
@@ -137,8 +136,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			String subResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(split[1], split[3]);
 			HashMap<String,Object> fields = FileterNullAndTransient(subResourceName, requestBody);
 		
-			auditLog.setOperate(Operate.LINK_CREATE.toString());
-			
+			auditLog.setEvent("linkCreate");
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setOwnerUuid(split[2]);
 
@@ -168,10 +166,10 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			auditLog.setLinkType(LinkType.BRIDGE);
 			String subResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(split[1], split[3]);
 			HashMap<String,Object> affectedFields = FileterNullAndTransient(subResourceName, requestBody);
-			if(getOperate(requestBody)!=null) {
-				auditLog.setOperate(getOperate(requestBody));
+			if(getEvent(requestBody)!=null) {
+				auditLog.setEvent(getEvent(requestBody));
 			}else {
-				auditLog.setOperate(Operate.LINK_UPDATE.toString());
+				auditLog.setEvent("linkUpdate");
 			}
 			
 			auditLog.setOwnerResource(subResourceName);
@@ -191,8 +189,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 
 			HashMap<String,Object> fields = FileterNullAndTransient(subsubResourceName, requestBody);
 			
-			auditLog.setOperate(Operate.LINK_CREATE.toString());
-			
+			auditLog.setEvent("linkCreate");
 			auditLog.setOwnerResource(subResourceName);
 			auditLog.setOwnerUuid(split[4]);
 
@@ -232,13 +229,13 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 
 		AuditLog auditLog = (AuditLog) context.get("auditLog");
 		auditLog.setUuid(httpPostOkResponse.getUuid());
-		String operate = auditLog.getOperate();
-		if (operate.equals(Operate.CREATE.toString())) {
+		String event = auditLog.getEvent();
+		if (event.equals("create")) {
 			auditLog.setOwnerUuid(httpPostOkResponse.getUuid());
 		}
 
 		Map fetchOne;
-		if (operate.equals(Operate.LINK_CREATE.toString())) {
+		if (event.equals("linkCreate")) {
 			PathMatcher matcher = new AntPathMatcher();
 			String prefix = "";
 			String[] split = requestPath.split("/");
@@ -377,10 +374,10 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		}
 	}
 
-	private String getOperate( Map<String,Object> requestBody) {
+	private String getEvent( Map<String,Object> requestBody) {
 		
-		if (requestBody.containsKey("operate")) {
-			return requestBody.get("operate").toString();
+		if (requestBody.containsKey("event")) {
+			return requestBody.get("event").toString();
 		} else {
 			return null;
 		}

@@ -26,7 +26,6 @@ import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
 import com.liyang.jpa.audit.client.common.CommonUtils;
 import com.liyang.jpa.audit.server.common.LinkType;
-import com.liyang.jpa.audit.server.common.Operate;
 import com.liyang.jpa.audit.server.domain.AuditLog;
 import com.liyang.jpa.audit.server.domain.DiffItem;
 import com.liyang.jpa.audit.server.domain.DiffItem.Type;
@@ -92,7 +91,7 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setOwnerUuid(split[2]);
 			auditLog.setLinkType(LinkType.DIRECT);
-			auditLog.setOperate(Operate.DELETE.toString());
+			auditLog.setEvent("delete");
 
 			Set<String> keySet = SmartQuery.getStructure(split[1]).getObjectFields().keySet();
 			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
@@ -108,7 +107,7 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 		} else if (matcher.match("/*/*/*/*", requestPath)) {
 			// 桥接删除
 			auditLog.setLinkType(LinkType.BRIDGE);
-			auditLog.setOperate(Operate.LINK_DELETE.toString());
+			auditLog.setEvent("linkDelete");
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setOwnerUuid(split[2]);
 
