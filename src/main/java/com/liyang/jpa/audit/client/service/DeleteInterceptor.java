@@ -107,7 +107,7 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 		} else if (matcher.match("/*/*/*/*", requestPath)) {
 			// 桥接删除
 			auditLog.setLinkType(LinkType.BRIDGE);
-			auditLog.setEvent("linkDelete");
+			auditLog.setEvent("unlink");
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setOwnerUuid(split[2]);
 
