@@ -63,7 +63,7 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 	}
 
 	@Override
-	public boolean preHandle(String requestPath, Object oldInstance, Map<Object, Object> context) {
+	public boolean preHandle(String requestPath, Object oldInstance, Map<String, Object> context) {
 		AuditLog auditLog = new AuditLog();
 		context.put("auditLog", auditLog);
 		PathMatcher matcher = new AntPathMatcher();
@@ -123,7 +123,7 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 
 	@Override
 	public HTTPPostOkResponse postHandle(String requestPath, HTTPPostOkResponse httpPostOkResponse,
-			Map<Object, Object> context) {
+			Map<String, Object> context) {
 		AuditLog auditLog = (AuditLog) context.get("auditLog");
 		auditLog.setUuid(httpPostOkResponse.getUuid());
 

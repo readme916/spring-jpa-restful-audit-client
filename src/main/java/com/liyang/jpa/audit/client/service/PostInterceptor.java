@@ -42,7 +42,7 @@ import com.liyang.jpa.smart.query.db.structure.EntityStructure;
 @Service
 public class PostInterceptor implements JpaRestfulPostInterceptor {
 	protected final static Logger logger = LoggerFactory.getLogger(PostInterceptor.class);
-	
+
 	@Value(value = "${spring.application.name}")
 	private String application;
 
@@ -70,12 +70,13 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 	@Override
 	public String[] path() {
 		// TODO Auto-generated method stub
-		return new String[] {"/**"};
+		return new String[] { "/**" };
 	}
 
 	@Override
 
-	public boolean preHandle(String requestPath, Map<String,Object> requestBody, Object oldInstance, Map<Object, Object> context) {
+	public boolean preHandle(String requestPath, Map<String, Object> requestBody, Object ownerInstance,
+			Map<String, Object> context) {
 		AuditLog auditLog = new AuditLog();
 		context.put("auditLog", auditLog);
 		PathMatcher matcher = new AntPathMatcher();
@@ -85,7 +86,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		auditLog.setRequestPath(requestPath);
 		auditLog.setIp(CommonUtils.getIP());
 		auditLog.setCreateAt(new Date());
-		
+
 		Principal principal = getPrincipal();
 		if (principal == null) {
 			auditLog.setCreateBy("anonymousUser");
@@ -98,11 +99,11 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			}
 			auditLog.setCreateBy(principal.getName());
 		}
-		
+
 		String[] split = requestPath.split("/");
 		if (matcher.match("/*", requestPath)) {
 			// 创建
-			HashMap<String,Object> affectedFields = FileterNullAndTransient(split[1], requestBody);
+			HashMap<String, Object> affectedFields = FileterNullAndTransient(split[1], requestBody);
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setLinkType(LinkType.DIRECT);
 			auditLog.setEvent("create");
@@ -115,14 +116,14 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 
 		} else if (matcher.match("/*/*", requestPath)) {
 			// 更新
-			HashMap<String,Object> affectedFields = FileterNullAndTransient(split[1], requestBody);
+			HashMap<String, Object> affectedFields = FileterNullAndTransient(split[1], requestBody);
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setOwnerUuid(split[2]);
 			auditLog.setLinkType(LinkType.DIRECT);
-			
-			if(getEvent(requestBody)!=null) {
+
+			if (getEvent(requestBody) != null) {
 				auditLog.setEvent(getEvent(requestBody));
-			}else {
+			} else {
 				auditLog.setEvent("update");
 			}
 			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
@@ -134,8 +135,8 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			// 桥接创建
 			auditLog.setLinkType(LinkType.BRIDGE);
 			String subResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(split[1], split[3]);
-			HashMap<String,Object> fields = FileterNullAndTransient(subResourceName, requestBody);
-			auditLog.setEvent("link");
+			HashMap<String, Object> fields = FileterNullAndTransient(subResourceName, requestBody);
+			auditLog.setEvent("update");
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setOwnerUuid(split[2]);
 
@@ -145,11 +146,11 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			}
 			String bodyUuid = getUuid(requestBody);
 			Map fetchOne;
-			
+
 			if (bodyUuid != null) {
 				fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(), "uuid=" + auditLog.getOwnerUuid()
 						+ "&" + split[3] + ".uuid=" + bodyUuid + "&fields=" + String.join(",", affectedFields));
-				if(fetchOne.equals(Collections.EMPTY_MAP)) {
+				if (fetchOne.equals(Collections.EMPTY_MAP)) {
 					fetchOne = new HashMap();
 					fetchOne.put(split[3], null);
 				}
@@ -164,13 +165,13 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			// 桥接更新
 			auditLog.setLinkType(LinkType.BRIDGE);
 			String subResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(split[1], split[3]);
-			HashMap<String,Object> affectedFields = FileterNullAndTransient(subResourceName, requestBody);
-			if(getEvent(requestBody)!=null) {
+			HashMap<String, Object> affectedFields = FileterNullAndTransient(subResourceName, requestBody);
+			if (getEvent(requestBody) != null) {
 				auditLog.setEvent(getEvent(requestBody));
-			}else {
+			} else {
 				auditLog.setEvent("update");
 			}
-			
+
 			auditLog.setOwnerResource(subResourceName);
 			auditLog.setOwnerUuid(split[4]);
 			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
@@ -186,8 +187,8 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			String subsubResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(subResourceName,
 					split[5]);
 
-			HashMap<String,Object> fields = FileterNullAndTransient(subsubResourceName, requestBody);
-			auditLog.setEvent("link");
+			HashMap<String, Object> fields = FileterNullAndTransient(subsubResourceName, requestBody);
+			auditLog.setEvent("update");
 			auditLog.setOwnerResource(subResourceName);
 			auditLog.setOwnerUuid(split[4]);
 
@@ -201,7 +202,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			if (bodyUuid != null) {
 				fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(), "uuid=" + auditLog.getOwnerUuid()
 						+ "&" + split[5] + ".uuid=" + bodyUuid + "&fields=" + String.join(",", affectedFields));
-				if(fetchOne.equals(Collections.EMPTY_MAP)) {
+				if (fetchOne.equals(Collections.EMPTY_MAP)) {
 					fetchOne = new HashMap();
 					fetchOne.put(split[5], null);
 				}
@@ -220,7 +221,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 
 	@Override
 	public HTTPPostOkResponse postHandle(String requestPath, HTTPPostOkResponse httpPostOkResponse,
-			Map<Object, Object> context) {
+			Map<String, Object> context) {
 
 		Set fields = (Set) context.get("affectedFields");
 		String affectedFields = String.join(",", fields);
@@ -233,20 +234,18 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		}
 
 		Map fetchOne;
-		if (auditLog.getLinkType().equals(LinkType.BRIDGE) && event.equals("link")) {
-			PathMatcher matcher = new AntPathMatcher();
-			String prefix = "";
-			String[] split = requestPath.split("/");
-			if (matcher.match("/*/*/*/*/*", requestPath)) {
-				prefix = split[5];
-			} else if (matcher.match("/*/*/*", requestPath)) {
-				prefix = split[3];
-			}
-
+		PathMatcher matcher = new AntPathMatcher();
+		String prefix = "";
+		String[] split = requestPath.split("/");
+		if (matcher.match("/*/*/*/*/*", requestPath)) {
+			prefix = split[5];
+			fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(), "uuid=" + auditLog.getOwnerUuid() + "&"
+					+ prefix + ".uuid=" + httpPostOkResponse.getUuid() + "&fields=" + affectedFields);
+		} else if (matcher.match("/*/*/*", requestPath)) {
+			prefix = split[3];
 			fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(), "uuid=" + auditLog.getOwnerUuid() + "&"
 					+ prefix + ".uuid=" + httpPostOkResponse.getUuid() + "&fields=" + affectedFields);
 		} else {
-
 			fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
 					"uuid=" + auditLog.getOwnerUuid() + "&fields=" + affectedFields);
 		}
@@ -290,10 +289,10 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 
 			} else if (leftValue instanceof Map) {
 				diffItem.setType(Type.OBJECT);
-				if(leftValue.equals(Collections.EMPTY_MAP)) {
+				if (leftValue.equals(Collections.EMPTY_MAP)) {
 					leftValue = null;
 				}
-				if(rightValue.equals(Collections.EMPTY_MAP)) {
+				if (rightValue.equals(Collections.EMPTY_MAP)) {
 					rightValue = null;
 				}
 				diffItem.setNewValue(leftValue);
@@ -349,7 +348,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		return ret;
 	}
 
-	private HashMap<String, Object> FileterNullAndTransient(String resource, Map<String,Object> requestBody) {
+	private HashMap<String, Object> FileterNullAndTransient(String resource, Map<String, Object> requestBody) {
 		EntityStructure structure = SmartQuery.getStructure(resource);
 		HashMap<String, Object> ret = new HashMap<String, Object>();
 		Set<Entry<String, Object>> entrySet = requestBody.entrySet();
@@ -364,7 +363,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		return ret;
 	}
 
-	private String getUuid(Map<String,Object> requestBody) {
+	private String getUuid(Map<String, Object> requestBody) {
 		if (requestBody.containsKey("uuid")) {
 			return requestBody.get("uuid").toString();
 		} else {
@@ -372,14 +371,15 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		}
 	}
 
-	private String getEvent( Map<String,Object> requestBody) {
-		
+	private String getEvent(Map<String, Object> requestBody) {
+
 		if (requestBody.containsKey("event")) {
 			return requestBody.get("event").toString();
 		} else {
 			return null;
 		}
 	}
+
 	private Principal getPrincipal() {
 		HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
 				.getRequest();
