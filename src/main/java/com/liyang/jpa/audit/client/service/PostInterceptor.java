@@ -136,7 +136,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			auditLog.setLinkType(LinkType.BRIDGE);
 			String subResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(split[1], split[3]);
 			HashMap<String, Object> fields = FileterNullAndTransient(subResourceName, requestBody);
-			auditLog.setEvent("update");
+			auditLog.setEvent("link");
 			auditLog.setOwnerResource(split[1]);
 			auditLog.setOwnerUuid(split[2]);
 
@@ -188,7 +188,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 					split[5]);
 
 			HashMap<String, Object> fields = FileterNullAndTransient(subsubResourceName, requestBody);
-			auditLog.setEvent("update");
+			auditLog.setEvent("link");
 			auditLog.setOwnerResource(subResourceName);
 			auditLog.setOwnerUuid(split[4]);
 
