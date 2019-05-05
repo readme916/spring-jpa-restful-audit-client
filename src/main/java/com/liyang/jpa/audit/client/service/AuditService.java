@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 
 import com.liyang.jpa.audit.server.domain.AuditLog;
 
-@FeignClient("${spring.jpa.restful.audit.server-name}")
+@FeignClient("${spring.jpa.restful.audit.server-name:audit}")
 public interface  AuditService {
 
 	@RequestMapping(path="/api",method=RequestMethod.POST)

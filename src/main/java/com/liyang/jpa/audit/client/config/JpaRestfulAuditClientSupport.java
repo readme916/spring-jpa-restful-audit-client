@@ -11,6 +11,5 @@ import org.springframework.context.annotation.Configuration;
 @EnableFeignClients(basePackages="com.liyang.jpa.audit.client.service")
 @Configuration
 public class JpaRestfulAuditClientSupport {
-	@Value(value = "${spring.jpa.restful.audit.server-name}")
-	private String server;
+
 }

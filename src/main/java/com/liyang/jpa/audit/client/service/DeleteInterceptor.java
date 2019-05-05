@@ -70,7 +70,7 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 
 		Principal principal = getPrincipal();
 		if (principal == null) {
-			auditLog.setCreateBy("guest");
+			auditLog.setCreatedBy("anonymousUser");
 		} else {
 			Map<String, Object> objectToMap = com.liyang.jpa.restful.core.utils.CommonUtils.objectToMap(principal);
 			Map oauth2Request = (Map) objectToMap.get("oauth2Request");
@@ -78,24 +78,24 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 				Object clientId = oauth2Request.get("clientId");
 				auditLog.setClient(clientId.toString());
 			}
-			auditLog.setCreateBy(principal.getName());
+			auditLog.setCreatedBy(principal.getName());
 		}
 
 		auditLog.setApplication(application);
 		auditLog.setRequestPath(requestPath);
 		auditLog.setIp(CommonUtils.getIP());
-		auditLog.setCreateAt(new Date());
+		auditLog.setCreatedAt(new Date());
 		String[] split = requestPath.split("/");
 
 		if (matcher.match("/*/*", requestPath)) {
-			auditLog.setOwnerResource(split[1]);
-			auditLog.setOwnerUuid(split[2]);
+			auditLog.setResource(split[1]);
+			auditLog.setUuid(split[2]);
 			auditLog.setLinkType(LinkType.DIRECT);
 			auditLog.setEvent("delete");
 
 			Set<String> keySet = SmartQuery.getStructure(split[1]).getObjectFields().keySet();
-			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
-					"uuid=" + auditLog.getOwnerUuid() + "&fields=*," + String.join(",", keySet));
+			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getResource(),
+					"uuid=" + auditLog.getUuid() + "&fields=*," + String.join(",", keySet));
 
 			Set<String> keySet2 = SmartQuery.getStructure(split[1]).getSimpleFields().keySet();
 			HashSet<String> hashSet = new HashSet<String>();
@@ -108,11 +108,13 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 			// 桥接删除
 			auditLog.setLinkType(LinkType.BRIDGE);
 			auditLog.setEvent("unlink");
-			auditLog.setOwnerResource(split[1]);
-			auditLog.setOwnerUuid(split[2]);
+			auditLog.setResource(split[1]);
+			auditLog.setUuid(split[2]);
+			auditLog.setSubResource(split[3]);
+			auditLog.setSubResourceId(split[4]);
 
-			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
-					"uuid=" + auditLog.getOwnerUuid() + "&" + split[3] + ".uuid=" + split[4] + "&fields=" + split[3]);
+			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getResource(),
+					"uuid=" + auditLog.getUuid() + "&" + split[3] + ".uuid=" + split[4] + "&fields=" + split[3]);
 			HashSet<String> hashSet = new HashSet<String>();
 			hashSet.add(split[3]);
 			context.put("affectedFields", hashSet);
@@ -125,8 +127,6 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 	public HTTPPostOkResponse postHandle(String requestPath, HTTPPostOkResponse httpPostOkResponse,
 			Map<String, Object> context) {
 		AuditLog auditLog = (AuditLog) context.get("auditLog");
-		auditLog.setUuid(httpPostOkResponse.getUuid());
-
 		HashMap<String, Object> hashMap = new HashMap<String, Object>();
 		Set<String> keySet = (Set<String>) context.get("affectedFields");
 		for (String str : keySet) {
@@ -153,15 +153,8 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 			diffItem.setOldValue(difference.rightValue());
 			details.put(key, diffItem);
 		}
-		ObjectMapper mapper = new ObjectMapper();
-		String writeValueAsString = null;
-		try {
-			writeValueAsString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(details);
-		} catch (JsonProcessingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		auditLog.setDifference(writeValueAsString);
+	
+		auditLog.setDifference(details);
 		auditService.add(auditLog);
 		return httpPostOkResponse;
 	}

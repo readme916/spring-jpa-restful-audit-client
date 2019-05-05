@@ -85,11 +85,11 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		auditLog.setPostBody(requestBody);
 		auditLog.setRequestPath(requestPath);
 		auditLog.setIp(CommonUtils.getIP());
-		auditLog.setCreateAt(new Date());
+		auditLog.setCreatedAt(new Date());
 
 		Principal principal = getPrincipal();
 		if (principal == null) {
-			auditLog.setCreateBy("anonymousUser");
+			auditLog.setCreatedBy("anonymousUser");
 		} else {
 			Map<String, Object> objectToMap = com.liyang.jpa.restful.core.utils.CommonUtils.objectToMap(principal);
 			Map oauth2Request = (Map) objectToMap.get("oauth2Request");
@@ -97,14 +97,14 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 				Object clientId = oauth2Request.get("clientId");
 				auditLog.setClient(clientId.toString());
 			}
-			auditLog.setCreateBy(principal.getName());
+			auditLog.setCreatedBy(principal.getName());
 		}
 
 		String[] split = requestPath.split("/");
 		if (matcher.match("/*", requestPath)) {
 			// 创建
 			HashMap<String, Object> affectedFields = FileterNullAndTransient(split[1], requestBody);
-			auditLog.setOwnerResource(split[1]);
+			auditLog.setResource(split[1]);
 			auditLog.setLinkType(LinkType.DIRECT);
 			auditLog.setEvent("create");
 			HashMap<String, Object> oldMap = new HashMap<String, Object>();
@@ -117,8 +117,8 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		} else if (matcher.match("/*/*", requestPath)) {
 			// 更新
 			HashMap<String, Object> affectedFields = FileterNullAndTransient(split[1], requestBody);
-			auditLog.setOwnerResource(split[1]);
-			auditLog.setOwnerUuid(split[2]);
+			auditLog.setResource(split[1]);
+			auditLog.setUuid(split[2]);
 			auditLog.setLinkType(LinkType.DIRECT);
 
 			if (getEvent(requestBody) != null) {
@@ -126,8 +126,8 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			} else {
 				auditLog.setEvent("update");
 			}
-			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
-					"uuid=" + auditLog.getOwnerUuid() + "&fields=" + String.join(",", affectedFields.keySet()));
+			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getResource(),
+					"uuid=" + auditLog.getUuid() + "&fields=" + String.join(",", affectedFields.keySet()));
 			context.put("affectedFields", affectedFields.keySet());
 			context.put("oldMap", fetchOne);
 
@@ -136,9 +136,10 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			auditLog.setLinkType(LinkType.BRIDGE);
 			String subResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(split[1], split[3]);
 			HashMap<String, Object> fields = FileterNullAndTransient(subResourceName, requestBody);
-			auditLog.setEvent("link");
-			auditLog.setOwnerResource(split[1]);
-			auditLog.setOwnerUuid(split[2]);
+			
+			auditLog.setResource(split[1]);
+			auditLog.setUuid(split[2]);
+			auditLog.setSubResource(split[3]);
 
 			HashSet<String> affectedFields = new HashSet<String>();
 			for (String str : fields.keySet()) {
@@ -146,17 +147,16 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			}
 			String bodyUuid = getUuid(requestBody);
 			Map fetchOne;
+			fetchOne = (Map) SmartQuery.fetchOne(auditLog.getResource(), "uuid=" + auditLog.getUuid() + "&fields=" + String.join(",", affectedFields));
+			if (fetchOne.equals(Collections.EMPTY_MAP)) {
+				fetchOne = new HashMap();
+				fetchOne.put(split[3], new HashMap());
+			}
 
 			if (bodyUuid != null) {
-				fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(), "uuid=" + auditLog.getOwnerUuid()
-						+ "&" + split[3] + ".uuid=" + bodyUuid + "&fields=" + String.join(",", affectedFields));
-				if (fetchOne.equals(Collections.EMPTY_MAP)) {
-					fetchOne = new HashMap();
-					fetchOne.put(split[3], null);
-				}
+				auditLog.setEvent("link");
 			} else {
-				fetchOne = new HashMap();
-				fetchOne.put(split[3], null);
+				auditLog.setEvent("create");
 			}
 			context.put("affectedFields", affectedFields);
 			context.put("oldMap", fetchOne);
@@ -172,49 +172,52 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 				auditLog.setEvent("update");
 			}
 
-			auditLog.setOwnerResource(subResourceName);
-			auditLog.setOwnerUuid(split[4]);
-			Map fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
-					"uuid=" + auditLog.getOwnerUuid() + "&fields=" + String.join(",", affectedFields.keySet()));
+			auditLog.setResource(split[1]);
+			auditLog.setUuid(split[2]);
+			auditLog.setSubResource(split[3]);
+			auditLog.setSubResourceId(split[4]);
+			Map fetchOne = (Map) SmartQuery.fetchOne(subResourceName,
+					"uuid=" + auditLog.getSubResourceId() + "&fields=" + String.join(",", affectedFields.keySet()));
 
 			context.put("affectedFields", affectedFields.keySet());
 			context.put("oldMap", fetchOne);
 
-		} else if (matcher.match("/*/*/*/*/*", requestPath)) {
-			// 桥接桥接创建
-			auditLog.setLinkType(LinkType.BRIDGE);
-			String subResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(split[1], split[3]);
-			String subsubResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(subResourceName,
-					split[5]);
-
-			HashMap<String, Object> fields = FileterNullAndTransient(subsubResourceName, requestBody);
-			auditLog.setEvent("link");
-			auditLog.setOwnerResource(subResourceName);
-			auditLog.setOwnerUuid(split[4]);
-
-			HashSet<String> affectedFields = new HashSet<String>();
-			for (String str : fields.keySet()) {
-				affectedFields.add(split[5] + "." + str);
-			}
-
-			String bodyUuid = getUuid(requestBody);
-			Map fetchOne;
-			if (bodyUuid != null) {
-				fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(), "uuid=" + auditLog.getOwnerUuid()
-						+ "&" + split[5] + ".uuid=" + bodyUuid + "&fields=" + String.join(",", affectedFields));
-				if (fetchOne.equals(Collections.EMPTY_MAP)) {
-					fetchOne = new HashMap();
-					fetchOne.put(split[5], null);
-				}
-			} else {
-				fetchOne = new HashMap();
-				fetchOne.put(split[5], null);
-			}
-
-			context.put("affectedFields", affectedFields);
-			context.put("oldMap", fetchOne);
-
-		}
+		} 
+//		else if (matcher.match("/*/*/*/*/*", requestPath)) {
+//			// 桥接桥接创建
+//			auditLog.setLinkType(LinkType.BRIDGE);
+//			String subResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(split[1], split[3]);
+//			String subsubResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(subResourceName,
+//					split[5]);
+//
+//			HashMap<String, Object> fields = FileterNullAndTransient(subsubResourceName, requestBody);
+//			auditLog.setEvent("link");
+//			auditLog.setOwnerResource(subResourceName);
+//			auditLog.setOwnerUuid(split[4]);
+//
+//			HashSet<String> affectedFields = new HashSet<String>();
+//			for (String str : fields.keySet()) {
+//				affectedFields.add(split[5] + "." + str);
+//			}
+//
+//			String bodyUuid = getUuid(requestBody);
+//			Map fetchOne;
+//			if (bodyUuid != null) {
+//				fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(), "uuid=" + auditLog.getOwnerUuid()
+//						+ "&" + split[5] + ".uuid=" + bodyUuid + "&fields=" + String.join(",", affectedFields));
+//				if (fetchOne.equals(Collections.EMPTY_MAP)) {
+//					fetchOne = new HashMap();
+//					fetchOne.put(split[5], null);
+//				}
+//			} else {
+//				fetchOne = new HashMap();
+//				fetchOne.put(split[5], null);
+//			}
+//
+//			context.put("affectedFields", affectedFields);
+//			context.put("oldMap", fetchOne);
+//
+//		}
 
 		return true;
 	}
@@ -227,27 +230,36 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		String affectedFields = String.join(",", fields);
 
 		AuditLog auditLog = (AuditLog) context.get("auditLog");
-		auditLog.setUuid(httpPostOkResponse.getUuid());
 		String event = auditLog.getEvent();
-		if (event.equals("create")) {
-			auditLog.setOwnerUuid(httpPostOkResponse.getUuid());
+		if (event.equals("create") && auditLog.getLinkType().equals(LinkType.DIRECT)) {
+			auditLog.setUuid(httpPostOkResponse.getUuid());
 		}
 
-		Map fetchOne;
+		Map fetchOne=null;
 		PathMatcher matcher = new AntPathMatcher();
 		String prefix = "";
 		String[] split = requestPath.split("/");
-		if (matcher.match("/*/*/*/*/*", requestPath)) {
-			prefix = split[5];
-			fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(), "uuid=" + auditLog.getOwnerUuid() + "&"
-					+ prefix + ".uuid=" + httpPostOkResponse.getUuid() + "&fields=" + affectedFields);
-		} else if (matcher.match("/*/*/*", requestPath)) {
+//		if (matcher.match("/*/*/*/*/*", requestPath)) {
+//			prefix = split[5];
+//			fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(), "uuid=" + auditLog.getOwnerUuid() + "&"
+//					+ prefix + ".uuid=" + httpPostOkResponse.getUuid() + "&fields=" + affectedFields);
+//		} else 
+		if (matcher.match("/*", requestPath)) {
+			auditLog.setUuid(httpPostOkResponse.getUuid());
+			fetchOne = (Map) SmartQuery.fetchOne(auditLog.getResource(),
+					"uuid=" + auditLog.getUuid() + "&fields=" + affectedFields);
+			
+		}else if(matcher.match("/*/*", requestPath)) {
+			fetchOne = (Map) SmartQuery.fetchOne(auditLog.getResource(),
+					"uuid=" + auditLog.getUuid() + "&fields=" + affectedFields);
+		}else if (matcher.match("/*/*/*", requestPath)) {
 			prefix = split[3];
-			fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(), "uuid=" + auditLog.getOwnerUuid() + "&"
-					+ prefix + ".uuid=" + httpPostOkResponse.getUuid() + "&fields=" + affectedFields);
-		} else {
-			fetchOne = (Map) SmartQuery.fetchOne(auditLog.getOwnerResource(),
-					"uuid=" + auditLog.getOwnerUuid() + "&fields=" + affectedFields);
+			fetchOne = (Map) SmartQuery.fetchOne(auditLog.getResource(), "uuid=" + auditLog.getUuid() + "&fields=" + affectedFields);
+		} else if (matcher.match("/*/*/*/*", requestPath)){
+			
+			String subResourceName = com.liyang.jpa.restful.core.utils.CommonUtils.subResourceName(split[1], split[3]);
+			fetchOne = (Map) SmartQuery.fetchOne(subResourceName,
+					"uuid=" + auditLog.getSubResourceId() + "&fields=" + affectedFields);
 		}
 
 		MapDifference<String, Object> differences = Maps.difference(fetchOne, (Map) context.get("oldMap"));
@@ -255,19 +267,12 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 
 		HashMap<String, DiffItem> details = parseDiffer(entriesDiffering);
 
-		ObjectMapper mapper = new ObjectMapper();
-		String writeValueAsString = null;
-		try {
-			writeValueAsString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(details);
-		} catch (JsonProcessingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		auditLog.setDifference(writeValueAsString);
+		auditLog.setDifference(details);
 		auditService.add(auditLog);
 		return httpPostOkResponse;
 	}
-
+	
+	
 	private HashMap<String, DiffItem> parseDiffer(Map<String, ValueDifference<Object>> entriesDiffering) {
 		HashMap<String, DiffItem> details = new HashMap<String, DiffItem>();
 		Set<Entry<String, ValueDifference<Object>>> entrySet = entriesDiffering.entrySet();
@@ -280,6 +285,8 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 			if (leftValue instanceof List) {
 				diffItem.setType(Type.ARRAY);
 				if (rightValue instanceof LinkedHashMap) {
+					rightValue = new ArrayList();
+				}else if(rightValue.equals(Collections.EMPTY_MAP) ) {
 					rightValue = new ArrayList();
 				}
 				Map<String, List> compareResult = compare((List) leftValue, (List) rightValue);
