@@ -390,6 +390,10 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 	private Principal getPrincipal() {
 		HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
 				.getRequest();
-		return request.getUserPrincipal();
+		if(request!=null) {
+			return request.getUserPrincipal();			
+		}else {
+			return null;
+		}
 	}
 }

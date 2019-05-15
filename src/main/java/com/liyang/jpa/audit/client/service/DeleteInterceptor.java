@@ -162,6 +162,10 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 	private Principal getPrincipal() {
 		HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
 				.getRequest();
-		return request.getUserPrincipal();
+		if(request!=null) {
+			return request.getUserPrincipal();
+		}else {
+			return null;
+		}
 	}
 }
