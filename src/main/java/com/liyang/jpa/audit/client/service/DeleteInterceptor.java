@@ -83,7 +83,7 @@ public class DeleteInterceptor implements JpaRestfulDeleteInterceptor {
 
 		auditLog.setApplication(application);
 		auditLog.setRequestPath(requestPath);
-		auditLog.setIp(CommonUtils.getIP());
+		auditLog.setIp(CommonUtils.getIPAddress());
 		auditLog.setCreatedAt(new Date());
 		String[] split = requestPath.split("/");
 

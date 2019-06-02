@@ -84,7 +84,7 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 		auditLog.setApplication(application);
 		auditLog.setPostBody(requestBody);
 		auditLog.setRequestPath(requestPath);
-		auditLog.setIp(CommonUtils.getIP());
+		auditLog.setIp(CommonUtils.getIPAddress());
 		auditLog.setCreatedAt(new Date());
 
 		Principal principal = getPrincipal();
