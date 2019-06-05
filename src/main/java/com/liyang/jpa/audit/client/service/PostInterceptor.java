@@ -296,10 +296,10 @@ public class PostInterceptor implements JpaRestfulPostInterceptor {
 
 			} else if (leftValue instanceof Map) {
 				diffItem.setType(Type.OBJECT);
-				if (leftValue.equals(Collections.EMPTY_MAP)) {
+				if (leftValue == null || leftValue.equals(Collections.EMPTY_MAP)) {
 					leftValue = null;
 				}
-				if (rightValue.equals(Collections.EMPTY_MAP)) {
+				if (rightValue == null || rightValue.equals(Collections.EMPTY_MAP)) {
 					rightValue = null;
 				}
 				diffItem.setNewValue(leftValue);
